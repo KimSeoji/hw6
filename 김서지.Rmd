@@ -1,0 +1,106 @@
+---
+title: "과제 6"
+author: "김서지"
+date: "2016년 11월 18일"
+output: html_document
+---
+#8.2
+```{r}
+# data
+nA <- nB <- 16
+ybarA <- 75.2 ; s2A <- 7.3^2
+ybarB <- 77.5 ; s2B <- 8.1^2
+
+# prior
+mu0 <- 75 ; g20 <- 100
+nu0 <- 2  ; s20 <- 100
+delta0  <- c(-4,-2,0,2,4)
+tau20   <- c(10,50,100,500)
+
+# initial value
+mu  <- (ybarA+ybarB)/2
+del <- (ybarA-ybarB)/2
+
+# MCMC algorithm
+S <- 1000
+result <- NULL
+for(del0 in delta0){
+  for(t20 in tau20){
+    MU <- DEL <- S2 <- NULL
+    for(s in 1:S){
+      # update s2
+      s2 <- 1/rgamma(1,(nu0+nA+nB)/2,(nu0*s20+nA*s2A+nA*(ybarA-mu-del)^{2}+
+                                        nB*s2B+nB*(ybarB-mu+del)^{2})/2)
+      # update mu
+      g2n <- 1/(1/g20+(nA+nB)/s2)
+      mun <- g2n*(mu0/g20+(nA*(ybarA-del)+nB*(ybarB+del))/s2)
+      mu  <- rnorm(1,mun,sqrt(g2n))
+      # update del
+      t2n   <- 1/(1/t20+(nA+nB)/s2)
+      deln  <- t2n*(del0/t20+(nA*(ybarA-mu)-nB*(ybarB-mu))/s2)
+      del   <- rnorm(1,deln,sqrt(t2n))
+      # save parameter values
+      MU  <- c(MU,mu)
+      DEL <- c(DEL,del)
+      S2  <- c(S2,s2)
+    }
+    res <- c(del0,t20,mean(DEL<0),quantile(DEL,c(.025,.975)),
+             (g20-t20)/(g20+t20),cor(MU+DEL,MU-DEL))
+    result <- rbind(result,res)
+  }
+}
+rownames(result) <- NULL
+colnames(result) <- c("del0","t20","Pr(del<0|Y)","2.5%","97.5%","prior cor","posterior cor")
+result
+```
+
+1)
+p(thetaA<thetaB|Y)= p(del<0|Y).
+우선 p(del<0|Y)는 모두 0.59이상으로 관측치를 반영한다.
+하지만 어떤 prior에서도 CI가 양수 구간을 포한하므로, 유의수준 5%에서 p(thetaA<thetaB|Y)라고 할 수는 없다.
+
+2)
+delta0에 대한 prior(-4,-2,0,2,4)는 YB>YA의 믿음이 강함에서 약함 순이다.
+tau20에 대한 prior(10,50,100,500)는 차례로 theta의 분산이 높다는 믿음이다.
+
+3)
+delta0의 prior와 관측치의 방향이 같을 때, 즉 YB>YA라는 믿음을 사전에 갖고 있는 경우에,
+(delta0=-4,-2)
+Pr(del<0|Y)은 tau20이 커짐에 따라 감소한다. 사후분포가 delta0의 값에 의존할 수록 YB>YA의 결론을 얻는 것이다.
+```{r, include=FALSE}
+library('dplyr')
+```
+
+```{r}
+data.frame(result) %>% select(1,2,3) %>%filter(del0==-4|del0==-2)
+```
+
+delta0의 prior와 관측치의 방향이 다르다면 (delta0=0,2,4)
+Pr(del<0|Y)은 tau20이 커짐에 따라 증가한다. 사후분포가 delta0의 값에 의존할 수록 YB>YA의 결론을 얻지 못하는 것이다.
+
+```{r}
+data.frame(result) %>% select(1,2,3) %>%filter(del0==0)
+data.frame(result) %>% select(1,2,3) %>%filter(del0==2|del0==4)
+```
+
+
+4)
+종합적으로, 사전에 YB>YA이고 분산이 작다는 믿음이 있는 경우에만 YB>YA가 상대적으로 높은 유의성이 있다.
+
+5)
+CI의 길이는 tao0이 클수록 커진다. 이러한 면에서 tao0이 큰 것이 약한 prior이다.
+```{r}
+data.frame(result) %>% mutate(CI.length=abs(result[,4]-result[,5])) %>% select(1,2,8)
+```
+
+
+6)
+모든 prior에서 post.corr는 비슷한 수준으로 수렴한다.
+```{r}
+data.frame(result) %>% select(1,2,6,7)
+```
+
+
+
+
+
